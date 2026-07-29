@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Freshness Classifier</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #eef2ff, #f8fafc);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            color: #1e293b;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow:
+                0 10px 30px rgba(0, 0, 0, 0.08),
+                0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .title {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #64748b;
+            margin-bottom: 35px;
+            font-size: 1rem;
+        }
+
+        .upload-box {
+            border: 2px dashed #cbd5e1;
+            border-radius: 18px;
+            padding: 30px;
+            background: #f8fafc;
+            transition: 0.3s;
+        }
+
+        .upload-box:hover {
+            border-color: #6366f1;
+            background: #f5f7ff;
+        }
+
+        input[type="file"] {
+            margin-bottom: 20px;
+        }
+
+        .image-preview {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+        }
+
+        .image-preview img {
+            width: 280px;
+            height: 280px;
+            object-fit: cover;
+            border-radius: 18px;
+            border: 4px solid #e2e8f0;
+            display: none;
+        }
+
+        .predict-btn {
+            margin-top: 25px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .predict-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(79, 70, 229, 0.25);
+        }
+
+        .results {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: #f8fafc;
+            border-radius: 18px;
+            padding: 25px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .model-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #334155;
+        }
+
+        .prediction {
+            font-size: 1rem;
+            color: #0f172a;
+            font-weight: 600;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            margin-top: 20px;
+            color: #6366f1;
+            font-weight: 600;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px;
+            }
+
+            .title {
+                font-size: 1.8rem;
+            }
+
+            .image-preview img {
+                width: 220px;
+                height: 220px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1 class="title">🍎 Fruit Freshness Classifier</h1>
+
+        <p class="subtitle">
+            Upload an image and compare predictions from all three deep learning models.
+        </p>
+
+        <div class="upload-box">
+
+            <input type="file" id="imageInput" accept="image/*">
+
+            <div class="image-preview">
+                <img id="preview">
+            </div>
+
+            <center>
+                <button class="predict-btn" onclick="uploadImage()">
+                    Predict Image
+                </button>
+
+                <div class="loading" id="loading">
+                    Predicting with models...
+                </div>
+            </center>
+
+        </div>
+
+        <div class="results">
+
+            <div class="card">
+                <div class="model-title">Baseline CNN</div>
+                <div class="prediction" id="m1">Waiting...</div>
+            </div>
+
+            <div class="card">
+                <div class="model-title">Improved CNN</div>
+                <div class="prediction" id="m2">Waiting...</div>
+            </div>
+
+            <div class="card">
+                <div class="model-title">ResNet18 Transfer</div>
+                <div class="prediction" id="m3">Waiting...</div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        const input = document.getElementById("imageInput");
+        const preview = document.getElementById("preview");
+
+        input.onchange = () => {
+
+            const file = input.files[0];
+
+            if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display = "block";
+            }
+        };
+
+        async function uploadImage() {
+
+            const file = input.files[0];
+
+            if (!file) {
+                alert("Please upload an image first.");
+                return;
+            }
+
+            const loading = document.getElementById("loading");
+            loading.style.display = "block";
+
+            const formData = new FormData();
+            formData.append("image", file);
+
+            try {
+
+                const response = await fetch("/predict", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                document.getElementById("m1").innerText = data.model1;
+                document.getElementById("m2").innerText = data.model2;
+                document.getElementById("m3").innerText = data.model3;
+
+            } catch (error) {
+
+                alert("Error while predicting image.");
+                console.error(error);
+
+            } finally {
+
+                loading.style.display = "none";
+            }
+        }
+
+    </script>
+
+</body>
+
+</html>
